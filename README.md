@@ -25,6 +25,12 @@ shorts/
     caption.txt   # post text + hashtags, ready to paste
 ```
 
+## Demo
+
+Raw "footage" (24 s, panning test pattern with a loud middle) → `povcut pipeline` with the tactical HUD → the moment that matters, cut, hooked, and packed. Sample footage, real pipeline:
+
+![demo](demo/demo.mp4)
+
 ## Why this exists
 
 Every open-source project for Ray-Ban Meta glasses is a developer tool: de-metaified clients, voice bridges to your own agent, IRL streaming rigs, file converters. All brilliant. None of them helps with the thing the glasses are actually *for* — making content.
@@ -33,8 +39,11 @@ POV creators shoot for hours and edit for longer. povcut kills the scrubbing:
 
 - **moments** — ranks every candidate moment 0–100 by audio energy (laughter, reactions, applause), scene changes, faces on camera, and Shorts-length fit. The loud bits float to the top.
 - **cut** — smart 9:16 crop that follows faces (needs the `vision` extra, else a clean center crop), karaoke-style burned-in captions, 30 fps, platform-ready H.264.
+- **HUD overlays** — tactical or minimal themes: REC bug, running timecode, progress bar, kinetic lower-third, and an auto hook title card ("wait for it…") in the first 1.5 s. The "how did you film that?" layer.
 - **spin** — rewrites *any* clip into the Ray-Ban Meta capture structure so Instagram treats it as glasses footage and enables **Spin View**. Yes, even phone footage.
 - **pack** — every clip ships with a thumbnail, a caption, and hashtags. Paste and post.
+- **post** — dual-track publishing via the shared [creator-publish](https://github.com/hydope/creator-publish) package: **Track A** — official APIs (YouTube first, then TikTok/Instagram/X/Threads/Bluesky/LinkedIn/Pinterest/Facebook), BYO keys, scheduled in plain English. **Track B** — a native-posting handoff pack for creators who'd rather post from the app itself.
+- **stats/tune** — an honest experiment: post performance is recorded from day one, and per-creator scoring weights tune themselves only after enough real data exists (≥50 posts, ≥60 days — enforced in code, with kill criteria if there's no signal).
 
 ## Install
 
@@ -58,9 +67,19 @@ povcut pipeline ~/MetaAIFootage --top 3
 povcut import ~/MetaAIFootage            # deduped, date-organized library
 povcut moments clip.mp4 --top 5         # ranked moments with reasons
 povcut cut clip.mp4 --top 3             # vertical shorts + packs
+povcut cut clip.mp4 --hud tactical      # the comment-bait overlay look
 povcut cut clip.mp4 --captions auto     # with on-device transcription
 povcut cut clip.mp4 --captions subs.srt # or your own .srt, burned in
 povcut spin phone_clip.mp4              # Spin View-ready _SPIN.MOV
+
+# publish (needs: pip install creator-publish)
+povcut post clip.mp4 --dry-run                      # validate, post nothing
+povcut post clip.mp4 --title "POV: ..."             # YouTube via official API
+povcut post clip.mp4 --at "Friday 6pm"              # scheduled, plain English
+povcut post clip.mp4 --handoff                      # Track B: native-posting pack
+povcut worker                                       # run the publish queue
+povcut stats                                        # recorded performance
+povcut tune                                         # refuses until enough data
 ```
 
 `povcut moments` prints something like:
@@ -93,10 +112,12 @@ After every conversion, `povcut spin` runs a structural self-check (atom order, 
 
 ## Roadmap
 
+- [x] HUD overlays + hook title cards
+- [x] Dual-track publishing via the shared creator-publish package
+- [x] Performance stats + tuning experiment (kill criteria enforced in code)
 - [ ] Per-frame crop tracking (smooth subject follow instead of per-clip crop)
-- [ ] Auto hook titles from transcription ("wait for it…")
-- [ ] Direct publish: TikTok / Instagram / YouTube Shorts upload
-- [ ] Live "record → clip → post" mode for IRL streamers
+- [ ] Auto hook titles from transcription, not just moment reasons
+- [ ] True camera-roll push (companion app)
 
 ## Contributing
 
