@@ -78,6 +78,42 @@ def cmd_cut(args) -> int:
     return 0
 
 
+def cmd_post(args) -> int:
+    from .post import handoff, post_now, schedule_post
+
+    if args.handoff:
+        dest = handoff(args.clip, caption=args.caption)
+        print(f"Track B handoff pack: {dest}")
+        print("Send the clip to your phone, paste caption.txt, post natively.")
+        return 0
+
+    hashtags = [h for h in (args.hashtags or "").split() if h]
+    if args.at:
+        jid = schedule_post(args.clip, args.at, platform=args.platform,
+                            title=args.title, description=args.description,
+                            hashtags=hashtags)
+        print(f"Queued publish job #{jid} for {args.at} "
+              f"({args.platform}). Run `povcut worker` to process the queue.")
+        return 0
+    res = post_now(args.clip, platform=args.platform, title=args.title,
+                   description=args.description, hashtags=hashtags,
+                   dry_run=args.dry_run)
+    if args.dry_run:
+        print("Dry run — nothing was posted:")
+    print(json.dumps(res, indent=2, default=str))
+    return 0
+
+
+def cmd_worker(args) -> int:
+    try:
+        from creator_publish import schedule as sched
+    except ImportError:
+        raise SystemExit("pip install creator-publish first.")
+    print("Worker running (Ctrl-C to stop)...")
+    sched.run_worker(poll_seconds=args.poll, once=args.once)
+    return 0
+
+
 def cmd_spin(args) -> int:
     from .spin import convert, verify
     out = convert(args.video, args.out)
@@ -185,6 +221,28 @@ def build_parser() -> argparse.ArgumentParser:
                     choices=["tactical", "minimal", "off"])
     pp.add_argument("--no-hook", action="store_true")
     pp.set_defaults(func=cmd_pipeline)
+
+    po = sub.add_parser("post", help="Post a clip: official APIs (Track A) "
+                                     "or native handoff pack (Track B)")
+    po.add_argument("clip")
+    po.add_argument("--platform", default="youtube",
+                    help="youtube | tiktok | instagram | x | ... (default: youtube)")
+    po.add_argument("--title", default="")
+    po.add_argument("--description", default="")
+    po.add_argument("--hashtags", default="")
+    po.add_argument("--at", default=None,
+                    help='Schedule in plain English, e.g. --at "Friday 6pm"')
+    po.add_argument("--dry-run", action="store_true",
+                    help="Validate everything without posting")
+    po.add_argument("--handoff", action="store_true",
+                    help="Track B: build the native-posting handoff pack instead")
+    po.add_argument("--caption", default="")
+    po.set_defaults(func=cmd_post)
+
+    pw = sub.add_parser("worker", help="Run the publish queue worker")
+    pw.add_argument("--poll", type=int, default=30)
+    pw.add_argument("--once", action="store_true")
+    pw.set_defaults(func=cmd_worker)
     return p
 
 

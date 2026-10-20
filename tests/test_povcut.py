@@ -126,6 +126,25 @@ class POVCutTest(unittest.TestCase):
         self.assertGreater(diff, 0.5,
                            "tactical HUD did not visibly change the frame")
 
+    def test_post_tracks(self):
+        from povcut import post as post_mod
+        clip = os.path.join(self.tmp, "postclip.mp4")
+        m = {"start": 8.0, "end": 14.0, "score": 88.0,
+             "reasons": ["loud moment"], "_source": "footage.mp4"}
+        reframe.cut_clip(self.video, m, clip, hud="off", hook=False)
+        # Track A dry run: validates without posting or needing creds
+        res = post_mod.post_now(clip, platform="youtube", title="t",
+                                hashtags=["#pov"], dry_run=True)
+        self.assertTrue(res["dry_run"])
+        self.assertEqual(res["platform"], "youtube")
+        # Track B handoff: pack with instructions, no API involved
+        dest = post_mod.handoff(clip, os.path.join(self.tmp, "hand"),
+                                caption="hello")
+        self.assertTrue(os.path.isfile(os.path.join(dest, "caption.txt")))
+        self.assertTrue(os.path.isfile(os.path.join(dest, "POSTING.md")))
+        self.assertTrue(os.path.isfile(
+            os.path.join(dest, os.path.basename(clip))))
+
     def test_pack_layout(self):
         m = {"start": 8.0, "end": 14.0, "score": 88.0,
              "reasons": ["loud moment"], "_source": "footage.mp4"}
