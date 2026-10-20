@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "povcut"
+version = "0.1.0"
+description = "Turn Ray-Ban Meta footage into viral shorts with one command"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [{ name = "POVCut contributors" }]
+keywords = ["ray-ban-meta", "smart-glasses", "video", "shorts", "tiktok", "creators"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Video",
+]
+dependencies = []
+
+[project.optional-dependencies]
+vision = ["opencv-python>=4.8"]
+auto-captions = ["faster-whisper>=1.0"]
+
+[project.scripts]
+povcut = "povcut.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/hydope/povcut"
+Repository = "https://github.com/hydope/povcut"
+Issues = "https://github.com/hydope/povcut/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["povcut*"]
