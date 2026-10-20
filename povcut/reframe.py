@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 
 from .util import probe, run, video_stream
+from .hud import build_filter, hook_title
 
 OUT_W, OUT_H = 1080, 1920
 
@@ -46,12 +47,14 @@ def _face_center_x(path: str, start: float, end: float,
 
 
 def cut_clip(path: str, moment: dict, out_path: str,
-             captions_srt: str | None = None) -> str:
+             captions_srt: str | None = None,
+             hud: str = "minimal", hook: bool = True) -> str:
     """Render one vertical clip for *moment*. Returns out_path."""
     info = probe(path)
     vs = video_stream(info)
     w, h = int(vs["width"]), int(vs["height"])
     start, end = moment["start"], moment["end"]
+    duration = max(0.5, end - start)
 
     crop_w = max(2, int(h * OUT_W / OUT_H))
     center = _face_center_x(path, start, end, w)
@@ -67,6 +70,13 @@ def cut_clip(path: str, moment: dict, out_path: str,
                "'FontSize=13,Bold=1,PrimaryColour=&HFFFFFF,"
                "OutlineColour=&H80000000,BorderStyle=1,Outline=2,"
                "Alignment=2,MarginV=90'")
+    title = None
+    if hook:
+        reasons = moment.get("reasons", [])
+        title = hook_title(reasons[0]) if reasons else "watch this"
+    hud_vf = build_filter(hud, duration, title=title)
+    if hud_vf:
+        vf += "," + hud_vf
 
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
     cmd = [

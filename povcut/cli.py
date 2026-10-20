@@ -71,7 +71,8 @@ def cmd_cut(args) -> int:
             except SystemExit as e:
                 print(f"  [!] captions skipped for moment {i}: {e}")
                 clip_srt = None
-        cut_clip(args.video, m, clip_path, captions_srt=clip_srt)
+        cut_clip(args.video, m, clip_path, captions_srt=clip_srt,
+                 hud=args.hud, hook=not args.no_hook)
         folder = pack_clip(clip_path, m, args.out)
         print(f"  moment {i}: score {m['score']} -> {folder}")
     return 0
@@ -122,7 +123,8 @@ def cmd_pipeline(args) -> int:
                     clip_srt = transcribe(video, m["start"], m["end"])
                 except SystemExit as e:
                     print(f"  [!] captions skipped: {e}")
-            cut_clip(video, m, clip_path, captions_srt=clip_srt)
+            cut_clip(video, m, clip_path, captions_srt=clip_srt,
+                     hud=args.hud, hook=not args.no_hook)
             folder = pack_clip(clip_path, m, out)
             print(f"  {os.path.basename(video)} moment {i}: "
                   f"score {m['score']} -> {folder}")
@@ -159,6 +161,11 @@ def build_parser() -> argparse.ArgumentParser:
     pc.add_argument("--captions", default=None,
                     help="'auto' (needs the auto-captions extra) or path to .srt")
     pc.add_argument("--language", default=None)
+    pc.add_argument("--hud", default="minimal",
+                    choices=["tactical", "minimal", "off"],
+                    help="overlay theme (default: minimal)")
+    pc.add_argument("--no-hook", action="store_true",
+                    help="skip the hook title card")
     pc.add_argument("--out", default="out")
     pc.set_defaults(func=cmd_cut)
 
@@ -174,6 +181,9 @@ def build_parser() -> argparse.ArgumentParser:
     pp.add_argument("--top", type=int, default=3)
     pp.add_argument("--captions", default=None,
                     help="'auto' or path to .srt (applied to every clip)")
+    pp.add_argument("--hud", default="minimal",
+                    choices=["tactical", "minimal", "off"])
+    pp.add_argument("--no-hook", action="store_true")
     pp.set_defaults(func=cmd_pipeline)
     return p
 

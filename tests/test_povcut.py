@@ -11,6 +11,7 @@ import unittest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from povcut import ingest, moments, reframe, score, spin, pack  # noqa: E402
+from povcut import hud as hud_mod  # noqa: E402
 from povcut.util import probe  # noqa: E402
 
 
@@ -92,6 +93,38 @@ class POVCutTest(unittest.TestCase):
         info = probe(out)
         vs = next(s for s in info["streams"] if s["codec_type"] == "video")
         self.assertEqual((int(vs["width"]), int(vs["height"])), (1080, 1920))
+
+    def test_hud_themes(self):
+        self.assertEqual(hud_mod.build_filter("off", 10.0), "")
+        self.assertIn("drawbox", hud_mod.build_filter("minimal", 10.0))
+        tactical = hud_mod.build_filter("tactical", 10.0, title="wait for it...")
+        self.assertIn("REC", tactical)
+        self.assertIn("drawtext", tactical)
+        self.assertRaises(ValueError, hud_mod.build_filter, "nope", 10.0)
+        self.assertEqual(hud_mod.hook_title("loud moment (laughter)"),
+                         "wait for it...")
+
+    def test_hud_changes_pixels(self):
+        """Done-criteria: tactical HUD must visibly alter the frame."""
+        m = {"start": 8.0, "end": 14.0, "score": 88.0,
+             "reasons": ["loud moment"]}
+        plain = os.path.join(self.tmp, "hud_off.mp4")
+        fancy = os.path.join(self.tmp, "hud_tac.mp4")
+        reframe.cut_clip(self.video, m, plain, hud="off", hook=False)
+        reframe.cut_clip(self.video, m, fancy, hud="tactical", hook=True)
+
+        def frame_mean(path, t=1.0):
+            out = os.path.join(self.tmp, "f.ppm")
+            subprocess.check_call([
+                "ffmpeg", "-y", "-v", "error", "-ss", str(t),
+                "-i", path, "-frames:v", "1", out])
+            with open(out, "rb") as f:
+                data = f.read()
+            return sum(data) / len(data)
+
+        diff = abs(frame_mean(plain) - frame_mean(fancy))
+        self.assertGreater(diff, 0.5,
+                           "tactical HUD did not visibly change the frame")
 
     def test_pack_layout(self):
         m = {"start": 8.0, "end": 14.0, "score": 88.0,
