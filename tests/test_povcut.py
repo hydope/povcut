@@ -145,6 +145,19 @@ class POVCutTest(unittest.TestCase):
         self.assertTrue(os.path.isfile(
             os.path.join(dest, os.path.basename(clip))))
 
+    def test_stats_kill_criteria(self):
+        # the experiment must REFUSE with no data — that IS the feature
+        from povcut import stats as st
+        import tempfile
+        st.DB = __import__("pathlib").Path(
+            tempfile.mkdtemp(prefix="povcut-stats-")) / "stats.db"
+        st.record_post("clip.mp4", "youtube", "abc123",
+                       {"loudness": 0.8, "duration_fit": 1.0, "face_ratio": 0.5})
+        st.record_metrics(1, views=1000, likes=50, comments=5)
+        self.assertEqual(len(st.list_clips()), 1)
+        with self.assertRaises(st.ExperimentNotReady):
+            st.tune()
+
     def test_pack_layout(self):
         m = {"start": 8.0, "end": 14.0, "score": 88.0,
              "reasons": ["loud moment"], "_source": "footage.mp4"}

@@ -114,6 +114,35 @@ def cmd_worker(args) -> int:
     return 0
 
 
+def cmd_stats(args) -> int:
+    from . import stats as st
+    if args.refresh:
+        for r in st.refresh():
+            print(json.dumps(r, default=str))
+        return 0
+    clips = st.list_clips()
+    if not clips:
+        print("No posts recorded yet. Post with `povcut post` first — "
+              "stats are instrumented from day one.")
+        return 0
+    for c in clips:
+        print(f"  #{c['id']} {c['platform']:10s} views={c['views']} "
+              f"{os.path.basename(c['clip'])}")
+    return 0
+
+
+def cmd_tune(args) -> int:
+    from . import stats as st
+    try:
+        res = st.tune()
+    except st.ExperimentNotReady as e:
+        print(f"Experiment not ready: {e}")
+        return 3
+    print("Tuned weights (per-creator, from real performance):")
+    print(json.dumps(res, indent=2))
+    return 0
+
+
 def cmd_spin(args) -> int:
     from .spin import convert, verify
     out = convert(args.video, args.out)
@@ -243,6 +272,16 @@ def build_parser() -> argparse.ArgumentParser:
     pw.add_argument("--poll", type=int, default=30)
     pw.add_argument("--once", action="store_true")
     pw.set_defaults(func=cmd_worker)
+
+    st = sub.add_parser("stats", help="Posted-clip stats (Phase 3 experiment)")
+    st.add_argument("--refresh", action="store_true",
+                    help="Pull latest views/likes from official APIs")
+    st.set_defaults(func=cmd_stats)
+
+    tu = sub.add_parser("tune", help="Tune scoring weights from real "
+                                    "performance (refuses until kill "
+                                    "criteria are met)")
+    tu.set_defaults(func=cmd_tune)
     return p
 
 
