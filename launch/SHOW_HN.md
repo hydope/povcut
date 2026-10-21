@@ -34,7 +34,7 @@ Pure Python + ffmpeg, MIT, no accounts or API keys for the core flow.
 Auto captions are fully on-device via faster-whisper as an optional
 extra. CI runs the whole pipeline on synthetic footage.
 
-Demo: [30-sec screen recording / before-after goes here]
+Demo: [30-sec screen recording](https://github.com/hydope/povcut/blob/main/demo/demo.mp4) — raw "footage" in, finished Short out.
 
 Happy to answer questions about the moment-scoring or the QuickTime
 surgery.

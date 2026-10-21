@@ -10,7 +10,7 @@ into ready-to-post vertical shorts.
 pip install povcut
 povcut pipeline ~/footage
 
-[demo video]
+Demo: https://github.com/hydope/povcut/blob/main/demo/demo.mp4
 
 2/
 How it finds the good bits — no black box:
