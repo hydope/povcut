@@ -1,5 +1,5 @@
 <p align="center">
-  <h1 align="center">povcut</h1>
+  <img src="demo/banner.png" alt="povcut — POV in. Shorts out." width="100%">
   <p align="center"><strong>Turn Ray-Ban Meta footage into viral shorts with one command.</strong></p>
   <p align="center">
     <a href="https://github.com/hydope/povcut/actions"><img src="https://img.shields.io/github/actions/workflow/status/hydope/povcut/ci.yml?style=for-the-badge" alt="CI"></a>
@@ -27,9 +27,34 @@ shorts/
 
 ## Demo
 
-Raw "footage" (24 s, panning test pattern with a loud middle) → `povcut pipeline` with the tactical HUD → the moment that matters, cut, hooked, and packed. Sample footage, real pipeline:
+Real footage (stock, via Pixabay), real pipeline: the raw clip goes in, `povcut pipeline --hud tactical` finds the moment, tracks the faces, adds the hook — and packs a ready-to-post Short.
 
-![demo](demo/demo.mp4)
+![demo](demo/demo.gif)
+
+Full-quality version: [demo.mp4](demo/demo.mp4). Every frame of the "after" was produced by the tool, nothing was hand-edited.
+
+| Hook title card | Tactical HUD | Burned-in captions |
+|---|---|---|
+| ![hook](demo/gallery_hook.png) | ![hud](demo/gallery_hud.png) | ![captions](demo/gallery_caption.png) |
+
+## For IRL streamers
+
+Stream for six hours, wake up to your best moments as Shorts:
+
+```bash
+povcut import --watch ~/stream-vods   # auto-imports as VODs land
+povcut pipeline ~/Videos/POVCut --top 5 --hud tactical
+povcut post shorts/best_moment/clip.mp4 --at "tomorrow 9am"
+```
+
+Your loudest reactions, biggest plays, and funniest moments — found, cut, captioned, and scheduled while you sleep. Works on glasses footage, phone VODs, or any video file.
+
+## Getting footage off your glasses
+
+povcut starts wherever your footage lands:
+
+- **Meta AI app** → export/share clips to your phone, then sync that folder to your computer (iCloud, Google Drive, Syncthing, USB — anything).
+- Point `povcut import --watch <that folder>` at it once. Every new capture is imported, deduped, and date-organized automatically from then on.
 
 ## Why this exists
 
@@ -38,7 +63,7 @@ Every open-source project for Ray-Ban Meta glasses is a developer tool: de-metai
 POV creators shoot for hours and edit for longer. povcut kills the scrubbing:
 
 - **moments** — ranks every candidate moment 0–100 by audio energy (laughter, reactions, applause), scene changes, faces on camera, and Shorts-length fit. The loud bits float to the top.
-- **cut** — smart 9:16 crop that follows faces (needs the `vision` extra, else a clean center crop), karaoke-style burned-in captions, 30 fps, platform-ready H.264.
+- **cut** — 9:16 crop with **per-frame face tracking** (the window glides after your subject; needs the `vision` extra, else a clean static crop), karaoke-style burned-in captions, 30 fps, platform-ready H.264.
 - **HUD overlays** — tactical or minimal themes: REC bug, running timecode, progress bar, kinetic lower-third, and an auto hook title card ("wait for it…") in the first 1.5 s. The "how did you film that?" layer.
 - **spin** — rewrites *any* clip into the Ray-Ban Meta capture structure so Instagram treats it as glasses footage and enables **Spin View**. Yes, even phone footage.
 - **pack** — every clip ships with a thumbnail, a caption, and hashtags. Paste and post.
@@ -113,11 +138,12 @@ After every conversion, `povcut spin` runs a structural self-check (atom order, 
 ## Roadmap
 
 - [x] HUD overlays + hook title cards
+- [x] Per-frame face-tracking crop
 - [x] Dual-track publishing via the shared creator-publish package
 - [x] Performance stats + tuning experiment (kill criteria enforced in code)
-- [ ] Per-frame crop tracking (smooth subject follow instead of per-clip crop)
 - [ ] Auto hook titles from transcription, not just moment reasons
 - [ ] True camera-roll push (companion app)
+- [ ] Live mode: clip moments during a stream, not after
 
 ## Contributing
 

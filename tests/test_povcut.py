@@ -126,6 +126,52 @@ class POVCutTest(unittest.TestCase):
         self.assertGreater(diff, 0.5,
                            "tactical HUD did not visibly change the frame")
 
+    def test_captions_burn_in(self):
+        srt = os.path.join(self.tmp, "caps.srt")
+        with open(srt, "w") as f:
+            f.write("1\n00:00:00,500 --> 00:00:04,000\n"
+                    "Hello captions burn in test\n\n")
+        out = os.path.join(self.tmp, "captioned.mp4")
+        m = {"start": 8.0, "end": 14.0, "score": 90.0,
+             "reasons": ["faces on camera"]}
+        reframe.cut_clip(self.video, m, out, captions_srt=srt,
+                         hud="off", hook=False)
+        info = probe(out)
+        vs = next(s for s in info["streams"] if s["codec_type"] == "video")
+        self.assertEqual((int(vs["width"]), int(vs["height"])), (1080, 1920))
+        # captions must change pixels vs the same clip without them
+        plain = os.path.join(self.tmp, "nocaps.mp4")
+        reframe.cut_clip(self.video, m, plain, hud="off", hook=False)
+
+        def frame_mean(path, t=1.0):
+            fp = os.path.join(self.tmp, "capf.ppm")
+            subprocess.check_call([
+                "ffmpeg", "-y", "-v", "error", "-ss", str(t),
+                "-i", path, "-frames:v", "1", fp])
+            with open(fp, "rb") as fh:
+                data = fh.read()
+            return sum(data) / len(data)
+
+        self.assertGreater(abs(frame_mean(out) - frame_mean(plain)), 0.2)
+
+    def test_tracking_wiring(self):
+        """With a moving face track, cut_clip must take the sendcmd path
+        and still produce a valid vertical clip."""
+        import povcut.reframe as rf
+        fake = [(i * 0.25, 100 + i * 10) for i in range(24)]  # moving right
+        orig = rf._face_track
+        rf._face_track = lambda *a, **k: fake
+        try:
+            out = os.path.join(self.tmp, "tracked.mp4")
+            m = {"start": 8.0, "end": 14.0, "score": 80.0,
+                 "reasons": ["faces on camera"]}
+            rf.cut_clip(self.video, m, out, hud="off", hook=False)
+        finally:
+            rf._face_track = orig
+        info = probe(out)
+        vs = next(s for s in info["streams"] if s["codec_type"] == "video")
+        self.assertEqual((int(vs["width"]), int(vs["height"])), (1080, 1920))
+
     def test_post_tracks(self):
         from povcut import post as post_mod
         clip = os.path.join(self.tmp, "postclip.mp4")

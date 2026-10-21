@@ -12,6 +12,22 @@ from . import __version__
 
 def cmd_import(args) -> int:
     from .ingest import import_folder
+
+    if args.watch:
+        import time
+        print(f"Watching {args.source} — new footage is imported as it "
+              f"lands. Ctrl-C to stop.")
+        try:
+            while True:
+                new = import_folder(args.source, library=args.library,
+                                    copy=not args.move)
+                for p in new:
+                    print(f"  imported: {p}")
+                time.sleep(args.interval)
+        except KeyboardInterrupt:
+            print("\nStopped watching.")
+        return 0
+
     new = import_folder(args.source, library=args.library, copy=not args.move)
     print(f"Imported {len(new)} new clip(s) into the library.")
     for p in new:
@@ -101,6 +117,21 @@ def cmd_post(args) -> int:
     if args.dry_run:
         print("Dry run — nothing was posted:")
     print(json.dumps(res, indent=2, default=str))
+    if not args.dry_run:
+        # Phase 3 instrumentation: record every real post from day one
+        try:
+            from . import stats as st
+            from .util import duration as _dur, probe as _probe
+            dur = _dur(_probe(args.clip))
+            fit = 1.0 if 15 <= dur <= 45 else 0.5
+            ext = (res.get("video_id") or res.get("media_id")
+                   or res.get("publish_id") or res.get("id"))
+            st.record_post(args.clip, args.platform, ext,
+                           {"duration_fit": fit, "loudness": 0.0,
+                            "face_ratio": 0.0, "duration": dur})
+            print("(recorded for stats — `povcut stats` / `povcut tune`)")
+        except Exception as e:
+            print(f"(stats not recorded: {e})")
     return 0
 
 
@@ -209,6 +240,11 @@ def build_parser() -> argparse.ArgumentParser:
     pi.add_argument("source", help="Folder with footage (Meta AI export, phone mount, ...)")
     pi.add_argument("--library", default=None)
     pi.add_argument("--move", action="store_true", help="Move instead of copy")
+    pi.add_argument("--watch", action="store_true",
+                    help="Keep watching: auto-import footage as it lands "
+                         "(point it at your phone's sync folder)")
+    pi.add_argument("--interval", type=int, default=15,
+                    help="Watch poll interval in seconds (default: 15)")
     pi.set_defaults(func=cmd_import)
 
     pm = sub.add_parser("moments", help="Rank the moments worth clipping")

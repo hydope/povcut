@@ -22,8 +22,8 @@ classifiers = [
 dependencies = []
 
 [project.optional-dependencies]
-vision = ["opencv-python>=4.8"]
-auto-captions = ["faster-whisper>=1.0"]
+vision = ["opencv-python-headless>=4.10,<5"]
+auto-captions = ["faster-whisper>=1.0", "av>=12,<17"]
 
 [project.scripts]
 povcut = "povcut.cli:main"

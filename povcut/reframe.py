@@ -46,6 +46,70 @@ def _face_center_x(path: str, start: float, end: float,
     return xs[len(xs) // 2]
 
 
+def _face_track(path: str, start: float, end: float,
+                crop_w: int, frame_w: int) -> list[tuple[float, int]] | None:
+    """Per-frame face tracking: [(t_rel, crop_x), ...] at 4 samples/sec.
+
+    The crop window follows the largest face, smoothed (moving average +
+    velocity cap) so it glides instead of jittering. Returns None when
+    OpenCV is missing or no face is ever seen — caller falls back to the
+    static median-face crop.
+    """
+    try:
+        import cv2  # type: ignore
+    except ImportError:
+        return None
+    cap = cv2.VideoCapture(path)
+    cascade = cv2.CascadeClassifier(
+        cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+    )
+    step = 0.25
+    raw: list[tuple[float, float | None]] = []
+    t = start
+    while t < end:
+        cap.set(cv2.CAP_PROP_POS_MSEC, t * 1000)
+        ok, frame = cap.read()
+        if not ok:
+            break
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        faces = cascade.detectMultiScale(gray, 1.2, 4)
+        cx = None
+        if len(faces):
+            x, _y, w, _h = max(faces, key=lambda f: f[2] * f[3])
+            cx = x + w / 2
+        raw.append((t - start, cx))
+        t += step
+    cap.release()
+
+    seen = [c for _, c in raw if c is not None]
+    if len(seen) < 4:
+        return None
+    # fill gaps by holding the last seen position (start: first seen)
+    filled: list[float] = []
+    last = seen[0]
+    for _, cx in raw:
+        if cx is not None:
+            last = cx
+        filled.append(last)
+    # desired crop x per sample, clamped to the frame
+    want = [min(max(c - crop_w / 2, 0), max(frame_w - crop_w, 0))
+            for c in filled]
+    # smooth: centered moving average, then cap velocity (no jumps)
+    smooth: list[float] = []
+    for i in range(len(want)):
+        lo = max(0, i - 2)
+        hi = min(len(want), i + 3)
+        smooth.append(sum(want[lo:hi]) / (hi - lo))
+    max_step = crop_w * 0.06  # per 0.25 s sample
+    out: list[tuple[float, int]] = []
+    prev = smooth[0]
+    for i, v in enumerate(smooth):
+        v = min(max(v, prev - max_step), prev + max_step)
+        out.append((round(i * step, 2), int(v)))
+        prev = v
+    return out
+
+
 def cut_clip(path: str, moment: dict, out_path: str,
              captions_srt: str | None = None,
              hud: str = "minimal", hook: bool = True) -> str:
@@ -57,13 +121,27 @@ def cut_clip(path: str, moment: dict, out_path: str,
     duration = max(0.5, end - start)
 
     crop_w = max(2, int(h * OUT_W / OUT_H))
-    center = _face_center_x(path, start, end, w)
-    if center is None:
-        center = w / 2
-    x = int(min(max(center - crop_w / 2, 0), max(w - crop_w, 0)))
+    track = _face_track(path, start, end, crop_w, w)
+    cmd_file = None
+    if track and max(x for _, x in track) - min(x for _, x in track) > 20:
+        # per-frame tracking: the crop window follows the face
+        import tempfile
+        fd, cmd_file = tempfile.mkstemp(prefix="povcut-track-",
+                                        suffix=".cmd")
+        with os.fdopen(fd, "w") as f:
+            for t_rel, cx in track:
+                f.write(f"{t_rel:.2f} [enter] crop@trk x {cx};\n")
+        x0 = track[0][1]
+        crop = (f"sendcmd=f={cmd_file},"
+                f"crop@trk=w={crop_w}:h={h}:x={x0}:y=0")
+    else:
+        center = _face_center_x(path, start, end, w)
+        if center is None:
+            center = w / 2
+        x = int(min(max(center - crop_w / 2, 0), max(w - crop_w, 0)))
+        crop = f"crop=w={crop_w}:h={h}:x={x}:y=0"
 
-    vf = (f"crop=w={crop_w}:h={h}:x={x}:y=0,"
-          f"scale={OUT_W}:{OUT_H}:flags=lanczos")
+    vf = crop + f",scale={OUT_W}:{OUT_H}:flags=lanczos"
     if captions_srt:
         srt = captions_srt.replace("\\", "/").replace("'", "\\'")
         vf += (f",subtitles='{srt}':force_style="
@@ -89,6 +167,11 @@ def cut_clip(path: str, moment: dict, out_path: str,
         out_path,
     ]
     p = run(cmd)
+    if cmd_file:
+        try:
+            os.remove(cmd_file)
+        except OSError:
+            pass
     if p.returncode != 0:
         raise SystemExit(f"ffmpeg cut failed:\n{p.stderr.strip()}")
     return out_path
